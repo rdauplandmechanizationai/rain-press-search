@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3부처 보도자료 검색</title>
+<meta name="description" content="2026년 5월 25일 호우 대응에 대해 행정안전부·기상청·경찰청이 낸 보도자료 3건을 카드로 보고 키워드로 검색하는 페이지">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* 레이아웃: 한 칼럼(최대 1040px). 머리글 → 검색줄 → 카드 3장 → 수치 비교표 → 외부 리소스 → 바닥글 */
+  :root {
+    --bg: #f3f6fa;          /* 비 오는 날 하늘빛이 살짝 도는 회백색 */
+    --surface: #ffffff;
+    --fg: #16212d;
+    --muted: #5d6b7b;
+    --line: #d8e0ea;
+    --accent: #1e5bb8;      /* 호우특보 색: 짙은 비 파랑 */
+    --accent-soft: #e3ecfa;
+    --mark: #ffe28a;
+    --warn: #b4461c;        /* 불일치 표시 */
+    --warn-soft: #fbe9e1;
+    --mois: #1e5bb8;        /* 행정안전부 */
+    --kma: #0d7f7a;         /* 기상청 */
+    --police: #4d47a6;      /* 경찰청 */
+    --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f161f; --surface: #182230; --fg: #e7edf4; --muted: #9db0c3; --line: #2a3747;
+      --accent: #7aaaf0; --accent-soft: #1b2b44; --mark: #6b5a12; --warn: #f0a07c; --warn-soft: #3d2317;
+      --mois: #7aaaf0; --kma: #5cc9c2; --police: #a39df0;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f161f; --surface: #182230; --fg: #e7edf4; --muted: #9db0c3; --line: #2a3747;
+    --accent: #7aaaf0; --accent-soft: #1b2b44; --mark: #6b5a12; --warn: #f0a07c; --warn-soft: #3d2317;
+    --mois: #7aaaf0; --kma: #5cc9c2; --police: #a39df0;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    margin: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-ui); font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1040px; margin: 0 auto;
+    padding-block: 32px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 36px;
+  }
+  h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.25; }
+  p { margin: 0; }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* 머리글 */
+  header.hero { display: grid; gap: 10px; }
+  header.hero h1 { font-size: clamp(24px, 4vw, 34px); font-weight: 700; }
+  header.hero .lede { max-width: 62ch; color: var(--muted); }
+
+  /* 검색줄 */
+  .search { display: grid; gap: 12px; }
+  .search-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .field { flex: 1 1 260px; min-width: 0; position: relative; }
+  .field input {
+    width: 100%; font: inherit; color: var(--fg); background: var(--surface);
+    border: 1.5px solid var(--line); border-radius: 8px; padding: 11px 40px 11px 14px;
+  }
+  .field input::placeholder { color: var(--muted); }
+  .field input::-webkit-search-cancel-button { -webkit-appearance: none; }  /* 지우기 버튼은 하나만 */
+  .field input:focus { border-color: var(--accent); }
+  .field .clear {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 18px;
+    width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
+  }
+  .field .clear:hover { background: var(--accent-soft); color: var(--fg); }
+  .count {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap;
+    background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 6px 14px; font-weight: 500;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 1.5px solid var(--line); background: var(--surface); color: var(--muted);
+    border-radius: 999px; padding: 5px 13px; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dept, var(--muted)); }
+  .chip[aria-pressed="true"] { border-color: var(--dept, var(--accent)); color: var(--fg); background: var(--accent-soft); }
+  .hint { color: var(--muted); font-size: 13px; }
+  .hint code { font-family: var(--font-mono); font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+
+  /* 카드 */
+  .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 20px 16px; display: grid; gap: 12px; align-content: start; min-width: 0;
+    border-top: 4px solid var(--dept, var(--line));
+  }
+  .card .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dept { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--dept, var(--fg)); font-size: 14px; }
+  .dept .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dept, var(--muted)); }
+  .card .when { color: var(--muted); font-size: 12px; }
+  .card h2 { font-size: 17px; font-weight: 600; }
+  .card .summary { color: var(--fg); }
+  .card details { border-top: 1px dashed var(--line); padding-top: 10px; }
+  .card summary { cursor: pointer; color: var(--accent); font-weight: 500; font-size: 14px; list-style: none; }
+  .card summary::-webkit-details-marker { display: none; }
+  .card summary::before { content: "▸ "; }
+  .card details[open] summary::before { content: "▾ "; }
+  .card .body { display: grid; gap: 10px; margin-top: 10px; font-size: 14px; }
+  .card .body strong { font-weight: 600; color: var(--accent); }
+  .card .contact { color: var(--muted); font-size: 13px; }
+  mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
+  .empty, .error {
+    grid-column: 1 / -1; background: var(--surface); border: 1px dashed var(--line); border-radius: 12px;
+    padding: 28px 20px; text-align: center; color: var(--muted);
+  }
+  .error { border-style: solid; color: var(--warn); }
+
+  /* 섹션 공통 */
+  section { display: grid; gap: 14px; }
+  section > .head { display: grid; gap: 4px; }
+  section h2 { font-size: 20px; font-weight: 600; }
+  section .sub { color: var(--muted); max-width: 70ch; }
+
+  /* 수치 비교표 */
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { font-size: 12px; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.val.diff { color: var(--warn); font-weight: 600; background: var(--warn-soft); }
+  td.val.diff::after { content: " ≠"; font-weight: 400; }
+  td.note { color: var(--muted); font-size: 13px; min-width: 200px; }
+  .legend { color: var(--muted); font-size: 13px; }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--warn-soft); border: 1px solid var(--warn); vertical-align: -1px; margin-right: 4px; }
+
+  /* 외부 리소스 */
+  .resources { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .res {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px;
+    display: grid; gap: 12px; align-content: start; min-width: 0;
+  }
+  .res h3 { font-size: 15px; font-weight: 600; }
+  .res .src { color: var(--muted); font-size: 13px; }
+  .shorts { display: flex; flex-wrap: wrap; gap: 14px; }
+  .short { flex: 1 1 200px; max-width: 260px; min-width: 0; display: grid; gap: 6px; }
+  .short .frame { aspect-ratio: 9 / 16; max-width: 100%; border-radius: 10px; overflow: hidden; background: #000; border: 1px solid var(--line); }
+  .short iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .short .cap { font-size: 13px; color: var(--muted); }
+  .links { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .links li { display: grid; gap: 2px; }
+  .links a { font-weight: 500; text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  .links .desc { color: var(--muted); font-size: 13px; }
+
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; display: grid; gap: 4px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .chip, .field input { transition: border-color .15s, background-color .15s; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">2026-05-25 호우 대응 · 부처 합동 보도자료 (가상 자료)</p>
+    <h1>5월 25일 호우 대응 3부처 보도자료 검색</h1>
+    <p class="lede">행정안전부·기상청·경찰청이 같은 사건을 두고 각각 발표한 보도자료 3건을 카드로 보여 줍니다. 키워드를 입력하면 부처명·제목·본문에서 찾아 바로 걸러 주고, 부처 칩으로 범위를 좁힐 수 있습니다.</p>
+  </header>
+
+  <section class="search" aria-label="검색">
+    <div class="search-row">
+      <label class="field">
+        <span class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">검색 키워드</span>
+        <input id="q" type="search" placeholder="키워드 입력 — 예: 1,820 / 16:30 / 경찰 / 인명피해" autocomplete="off" spellcheck="false">
+        <button class="clear" id="clear" type="button" aria-label="검색어 지우기" hidden>×</button>
+      </label>
+      <output class="count" id="count" for="q" aria-live="polite">결과 –건</output>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="부처 필터"></div>
+    <p class="hint">본문의 굵은 표시나 제목 기호는 무시하고 찾습니다. <code>1,820명의</code> 처럼 붙여 써도 됩니다.</p>
+  </section>
+
+  <section aria-label="보도자료 카드">
+    <div class="cards" id="cards"><p class="empty">보도자료데이터.json 을 불러오는 중…</p></div>
+  </section>
+
+  <section id="figures">
+    <div class="head">
+      <h2>부처별 핵심 수치 비교</h2>
+      <p class="sub">세 보도자료의 본문에서 같은 항목의 숫자를 뽑아 나란히 놓았습니다. 다수와 다른 값은 색으로 표시합니다.</p>
+    </div>
+    <div class="table-wrap">
+      <table id="figtable">
+        <thead><tr><th>항목</th><th>행정안전부</th><th>기상청</th><th>경찰청</th><th>비고</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="legend"><span class="sw"></span>다른 부처와 값이 다른 칸. 인력·예산은 집계 범위 자체가 달라 숫자만으로 오류라고 보기 어렵습니다.</p>
+  </section>
+
+  <section id="resources">
+    <div class="head">
+      <h2>외부 리소스</h2>
+      <p class="sub">호우 때 알아 두어야 할 행동요령 영상과, 실제 특보·보도자료를 확인할 수 있는 공식 사이트입니다.</p>
+    </div>
+    <div class="resources">
+      <div class="res">
+        <h3>호우·홍수 국민행동요령 영상</h3>
+        <p class="src">출처: 행정안전부 안전한TV (YouTube)</p>
+        <div class="shorts">
+          <div class="short">
+            <div class="frame">
+              <iframe src="https://www.youtube-nocookie.com/embed/pMrzSYaYdlw" title="[국민행동요령] 여름철 폭우 시 이것만 알아두면 안전합니다 — 행정안전부 안전한TV" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            </div>
+            <p class="cap">여름철 폭우 시 행동요령</p>
+          </div>
+          <div class="short">
+            <div class="frame">
+              <iframe src="https://www.youtube-nocookie.com/embed/lE6o3tTQs5Q" title="[국민행동요령] 여름철 홍수 시 이것만 알아두면 안전합니다 — 행정안전부 안전한TV" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            </div>
+            <p class="cap">여름철 홍수 시 행동요령</p>
+          </div>
+        </div>
+      </div>
+      <div class="res">
+        <h3>공식 사이트 바로가기</h3>
+        <p class="src">보도자료에 등장하는 세 기관의 원본 정보 창구</p>
+        <ul class="links">
+          <li><a href="https://www.weather.go.kr/w/index.do" target="_blank" rel="noopener">기상청 날씨누리</a><span class="desc">호우특보 발효 현황과 레이더 영상</span></li>
+          <li><a href="https://www.kma.go.kr/rss/main.html" target="_blank" rel="noopener">기상청 RSS 서비스</a><span class="desc">특보·예보 RSS 주소 목록</span></li>
+          <li><a href="https://www.mois.go.kr/frt/sub/a06/b01/rss/screen.do" target="_blank" rel="noopener">행정안전부 보도자료 RSS</a><span class="desc">중대본 가동 등 공식 보도자료 구독</span></li>
+          <li><a href="https://www.safetv.go.kr" target="_blank" rel="noopener">안전한TV</a><span class="desc">재난 유형별 국민행동요령 영상</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>자료: 과제용 가상 보도자료 3종(행정안전부·기상청·경찰청, 2026-05-25). 페이지는 정적 HTML 한 장이 같은 폴더의 <a href="보도자료데이터.json">보도자료데이터.json</a> 을 읽어 그립니다.</p>
+    <p>영상·링크는 각 기관의 공개 자료이며, 이 페이지와 무관하게 해당 기관이 운영합니다.</p>
+  </footer>
+
+</div>
+
+<script>
+(() => {
+  const DATA_URL = encodeURI('보도자료데이터.json');
+  const DEPTS = [
+    { name: '행정안전부', color: 'var(--mois)',   when: '17:00 발표' },
+    { name: '기상청',     color: 'var(--kma)',    when: '18:00 발표' },
+    { name: '경찰청',     color: 'var(--police)', when: '18:30 발표' },
+  ];  // 발표 시각은 원본 묶음 문서(3개_보도자료_묶음.md)의 주석에서 가져옴
+  const deptInfo = (name) => DEPTS.find(d => d.name === name) || { name, color: 'var(--muted)', when: '' };
+
+  const $ = (sel) => document.querySelector(sel);
+  const qInput = $('#q'), clearBtn = $('#clear'), countEl = $('#count'), chipsEl = $('#chips'), cardsEl = $('#cards');
+
+  let articles = [];
+  let query = '';
+  let dept = '전체';
+
+  // ---------- 텍스트 유틸 ----------
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // 마크다운 기호(**, #, ---)를 걷어낸 본문. 검색과 요약은 이 텍스트를 쓴다.
+  function plain(body) {
+    return String(body).replace(/\*\*/g, '').split('\n')
+      .map(l => l.trim()).filter(l => l && l !== '---')
+      .map(l => l.replace(/^#+\s*/, ''))
+      .join('\n');
+  }
+  function summary(a) {
+    const lines = plain(a['본문']).split('\n');
+    if (lines[0] === a['제목']) lines.shift();            // 첫 줄 H1은 제목과 같으므로 뺀다
+    const text = lines.filter(l => !l.startsWith('담당 부서')).join(' ');
+    return text.length > 120 ? text.slice(0, 120).trimEnd() + '…' : text;
+  }
+  function contact(a) {
+    const m = String(a['본문']).match(/담당 부서:\s*(.+)/);
+    return m ? m[1].trim() : '';
+  }
+  function highlight(escapedText) {
+    if (!query) return escapedText;
+    return escapedText.replace(new RegExp(escRe(esc(query)), 'gi'), m => `<mark>${m}</mark>`);
+  }
+  // 본문 전체를 문단 HTML로. 제목 줄과 구분선은 빼고 **굵게**는 <strong>으로.
+  function bodyHtml(a) {
+    const paras = String(a['본문']).split(/\n\s*\n/)
+      .map(p => p.trim()).filter(p => p && p !== '---' && !/^#\s/.test(p) && !/^담당 부서/.test(p));  // 담당 부서는 카드 바닥에 따로
+    return paras.map(p => `<p>${highlight(esc(p)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</p>`).join('');
+  }
+
+  // ---------- 검색 ----------
+  function matches(a) {
+    if (dept !== '전체' && a['부처'] !== dept) return false;
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return [a['부처'], a['제목'], plain(a['본문'])].some(f => String(f).toLowerCase().includes(q));
+  }
+
+  // ---------- 그리기 ----------
+  function renderChips() {
+    const all = [{ name: '전체', color: 'var(--accent)' }, ...DEPTS];
+    chipsEl.innerHTML = all.map(d =>
+      `<button type="button" class="chip" data-dept="${esc(d.name)}" aria-pressed="${d.name === dept}" style="--dept:${d.color}"><span class="dot"></span>${esc(d.name)}</button>`
+    ).join('');
+  }
+  function renderCards() {
+    const hits = articles.filter(matches);
+    countEl.textContent = `결과 ${hits.length}건`;
+    if (!hits.length) {
+      cardsEl.innerHTML = `<p class="empty">“${esc(query)}”${dept !== '전체' ? ` (${esc(dept)})` : ''} 에 해당하는 보도자료가 없습니다.</p>`;
+      return;
+    }
+    cardsEl.innerHTML = hits.map(a => {
+      const d = deptInfo(a['부처']);
+      const c = contact(a);
+      return `
+      <article class="card" style="--dept:${d.color}">
+        <div class="meta">
+          <span class="dept"><span class="dot"></span>${highlight(esc(a['부처']))}</span>
+          <span class="when num">No.${esc(a['번호'])}${d.when ? ' · ' + esc(d.when) : ''}</span>
+        </div>
+        <h2>${highlight(esc(a['제목']))}</h2>
+        <p class="summary">${highlight(esc(summary(a)))}</p>
+        <details${query ? ' open' : ''}>
+          <summary>본문 전체 보기</summary>
+          <div class="body">${bodyHtml(a)}</div>
+        </details>
+        ${c ? `<p class="contact">${highlight(esc(c))}</p>` : ''}
+      </article>`;
+    }).join('');
+  }
+
+  // 핵심 수치 비교표: 본문에서 정규식으로 뽑는다
+  const FIGURES = [
+    { label: '중대본 1단계 가동 시각', re: /(\d{1,2}:\d{2})\s*부로/,  fmt: v => v,          note: '기상청만 10분 뒤인 16:40 으로 기록' },
+    { label: '대상 광역지방정부',      re: /(\d+)개\s*광역/,         fmt: v => `${v}개`,   note: '경찰청 통제 범위는 16개 광역' },
+    { label: '동원 인력',              re: /([\d,]{4,})명/,          fmt: v => `${v}명`,   note: '행안부·기상청은 공무원·소방·경찰 전체, 경찰청은 경찰 인력만 집계' },
+    { label: '투입 예산',              re: /(\d+)억원/,              fmt: v => `${v}억원`, note: '행안부 예비비 / 행안부·기상청 합동 / 경찰청 자체 예산으로 범위가 다름' },
+    { label: '잠정 인명피해',          re: /인명피해는\s*(\d+)명/,   fmt: v => `${v}명`,   note: '가장 먼저 발표한 행안부(17:00)만 2명' },
+  ];
+  function renderFigures() {
+    const tbody = $('#figtable tbody');
+    const byDept = Object.fromEntries(DEPTS.map(d => [d.name, articles.find(a => a['부처'] === d.name)]));
+    tbody.innerHTML = FIGURES.map(f => {
+      const vals = DEPTS.map(d => {
+        const a = byDept[d.name];
+        const m = a ? plain(a['본문']).match(f.re) : null;
+        return m ? m[1] : null;
+      });
+      const counts = {};
+      vals.forEach(v => { if (v !== null) counts[v] = (counts[v] || 0) + 1; });
+      const top = Math.max(0, ...Object.values(counts));
+      const allSame = Object.keys(counts).length <= 1;
+      const cells = vals.map(v => {
+        const diff = !allSame && (counts[v] < top || top === 1);
+        return `<td class="val${diff ? ' diff' : ''}">${v === null ? '—' : esc(f.fmt(v))}</td>`;
+      }).join('');
+      return `<tr><th scope="row">${esc(f.label)}</th>${cells}<td class="note">${allSame ? '세 부처 일치' : esc(f.note)}</td></tr>`;
+    }).join('');
+  }
+
+  // ---------- 이벤트 ----------
+  qInput.addEventListener('input', () => {
+    query = qInput.value.trim();
+    clearBtn.hidden = !query;
+    renderCards();
+  });
+  clearBtn.addEventListener('click', () => { qInput.value = ''; query = ''; clearBtn.hidden = true; renderCards(); qInput.focus(); });
+  chipsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip');
+    if (!btn) return;
+    dept = btn.dataset.dept;
+    renderChips();
+    renderCards();
+  });
+
+  // ---------- 시작 ----------
+  renderChips();
+  fetch(DATA_URL)
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(data => {
+      articles = Array.isArray(data) ? data : [];
+      renderCards();
+      renderFigures();
+    })
+    .catch(err => {
+      countEl.textContent = '결과 0건';
+      cardsEl.innerHTML = `<p class="error">보도자료데이터.json 을 불러오지 못했습니다 (${esc(err.message)}).<br>파일을 더블클릭해 열면 브라우저가 JSON 읽기를 막습니다. 배포된 주소나 로컬 서버(<code>python -m http.server</code>)로 열어 주세요.</p>`;
+    });
+})();
+</script>
+</body>
+</html>
